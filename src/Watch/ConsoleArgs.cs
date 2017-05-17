@@ -20,10 +20,11 @@ namespace Watch
         [ArgActionMethod, ArgDescription("Watch system clipboard for changes"), ArgShortcut("c")]
         public void Clipboard(ClipboardArgs args)
         {
-            var t = new Thread(new ParameterizedThreadStart((stop) =>
+            bool stopThread = false;
+            var t = new Thread(new ThreadStart(() =>
             {
                 string previousClipText = System.Windows.Clipboard.GetText();
-                while (!(bool)stop)
+                while (!stopThread)
                 {
                     string currentText = String.Empty;
                     if (System.Windows.Clipboard.ContainsText() &&
@@ -37,14 +38,12 @@ namespace Watch
                         Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", currentText));
                     }
 
-                    Thread.Sleep(500);
+                    Thread.Sleep(args.Interval);
                 }
             }));
 
             t.SetApartmentState(ApartmentState.STA);
-
-            bool stopThread = false;
-            t.Start(stopThread);
+            t.Start();
 
             Console.WriteLine("Press Key to End");
             Console.ReadKey();
@@ -55,6 +54,7 @@ namespace Watch
         [ArgActionMethod, ArgDescription("Watch file or directory for changes"), ArgShortcut("fs")]
         public void Filesystem(FileSystemArgs args)
         {
+            bool stopThread = false;
             var t = new Thread(new ParameterizedThreadStart((stop) =>
             {
                 var isFile = File.Exists(args.Path);
@@ -62,7 +62,7 @@ namespace Watch
                     isFile ? Path.GetFileName(args.Path) : "");
                 watcher.EnableRaisingEvents = true;
 
-                while (!(bool)stop)
+                while (!stopThread)
                 {
                     watcher.WaitForChanged(WatcherChangeTypes.All);
 
@@ -72,9 +72,7 @@ namespace Watch
             }));
 
             t.SetApartmentState(ApartmentState.STA);
-
-            bool stopThread = false;
-            t.Start(stopThread);
+            t.Start();
 
             Console.WriteLine("Press Key to End");
             Console.ReadKey();
@@ -83,15 +81,54 @@ namespace Watch
         }
 
         [ArgActionMethod, ArgDescription("Watch for changes in http response")]
-        public void Http()
+        public void Http(HttpArgs args)
         {
             throw new NotImplementedException("Http watching is not implemented yet");
         }
 
         [ArgActionMethod, ArgDescription("Watch for changes in Ftp response")]
-        public void FTP()
+        public void FTP(FtpArgs args)
         {
-            throw new NotImplementedException("FTP watching is not implemented yet");
+            bool stopThread = false;
+            var t = new Thread(new ThreadStart(() =>
+            {
+                DateTime defaultDateTime = DateTime.Now.AddYears(-10000);
+                DateTime previouslastModified = defaultDateTime; 
+                while (!stopThread)
+                {
+                    FtpWebRequest request = (FtpWebRequest)WebRequest.Create(args.Uri);
+                    request.Method = WebRequestMethods.Ftp.GetDateTimestamp;
+                    request.Credentials = new NetworkCredential(args.UserName, args.Password);
+
+                    using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
+                    {
+                        // set initial modified state
+                        if (previouslastModified == defaultDateTime)
+                        {
+                            previouslastModified = response.LastModified; 
+                        }
+
+                        // check datetime
+                        if(previouslastModified < response.LastModified)
+                        {
+                            previouslastModified = response.LastModified;
+
+                            // run program
+                            Run(args.TargetProgram, args.Arguments);
+                        }
+                    }
+                    
+                    Thread.Sleep(args.Interval);
+                }
+            }));
+
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+
+            Console.WriteLine("Press Key to End");
+            Console.ReadKey();
+            stopThread = true;
+            t.Abort();
         }
         
         private void Run(string TargetProgram, string Arguments)
@@ -118,8 +155,8 @@ namespace Watch
             }
         }
     }
-    
-    public class ClipboardArgs
+
+    public class DefaultTriggerArgs
     {
         [ArgRequired, ArgDescription("The target program that is triggered"), ArgShortcut("t"), ArgPosition(1), ArgExistingFile]
         public string TargetProgram { get; set; }
@@ -128,15 +165,39 @@ namespace Watch
         public string Arguments { get; set; }
     }
 
-    public class FileSystemArgs
+    public class ClipboardArgs : DefaultTriggerArgs
     {
-        [ArgRequired, ArgDescription("The target program that is triggered"), ArgShortcut("t"), ArgPosition(1), ArgExistingFile]
-        public string TargetProgram { get; set; }
+        [ArgDescription("Interval in which to poll clipboard in ms"), ArgShortcut("i"), DefaultValue(500), ArgRange(0, int.MaxValue)]
+        public int Interval { get; set; }
+    }
 
-        [ArgDescription("Arguments passed to program when Clipboard is updated"), ArgShortcut("a"), ArgPosition(2)]
-        public string Arguments { get; set; }
-
+    public class FileSystemArgs : DefaultTriggerArgs
+    {
         [ArgRequired, ArgDescription("Path to file or directory to be monitored"), ArgShortcut("p"), ArgPosition(3)]
         public string Path { get; set; }
+    }
+
+    public class HttpArgs : DefaultTriggerArgs
+    {
+        [ArgDescription("Interval in which to poll http resource in ms"), ArgShortcut("i"), DefaultValue(5000), ArgRange(0, int.MaxValue)]
+        public int Interval { get; set; }
+
+        [ArgRequired, ArgDescription("Uri to resource"), ArgShortcut("u"), ArgPosition(3)]
+        public Uri Uri { get; set; }
+    }
+    
+    public class FtpArgs : DefaultTriggerArgs
+    {
+        [ArgRequired, ArgDescription("account username"), ArgShortcut("un"), ArgPosition(3)]
+        public string UserName { get; set; }
+
+        [ArgRequired, ArgDescription("account password"), ArgShortcut("pw"), ArgPosition(4)]
+        public string Password { get; set; }
+
+        [ArgDescription("Interval in which to poll ftp resource in ms"), ArgShortcut("i"), DefaultValue(5000), ArgRange(0, int.MaxValue)]
+        public int Interval { get; set; }
+
+        [ArgRequired, ArgDescription("Uri to resource"), ArgShortcut("u"), ArgPosition(5)]
+        public Uri Uri { get; set; }
     }
 }
