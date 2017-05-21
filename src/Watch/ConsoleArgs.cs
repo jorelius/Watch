@@ -55,7 +55,7 @@ namespace Watch
         public void Filesystem(FileSystemArgs args)
         {
             bool stopThread = false;
-            var t = new Thread(new ParameterizedThreadStart((stop) =>
+            var t = new Thread(new ThreadStart(() =>
             {
                 var isFile = File.Exists(args.Path);
                 var watcher = new FileSystemWatcher(Path.GetDirectoryName(args.Path), 
@@ -83,7 +83,125 @@ namespace Watch
         [ArgActionMethod, ArgDescription("Watch for changes in http response")]
         public void Http(HttpArgs args)
         {
-            throw new NotImplementedException("Http watching is not implemented yet");
+            bool stopThread = false;
+            var t = new Thread(new ThreadStart(() => 
+            {
+                DateTime defaultDateTime = new DateTime(100, 1, 1);
+                DateTime previouslastModified = defaultDateTime;
+
+                string previousETag = "";
+
+                var sha1 = System.Security.Cryptography.SHA1.Create();
+                byte[] previousHash = null;
+
+                while (!stopThread)
+                {
+                    HttpWebRequest request = HttpWebRequest.CreateHttp(args.Uri);
+                    request.Method = "GET";
+
+                    bool runTarget = false;
+                    using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                    {
+                        var currentEtag = response.Headers.GetValues("ETag");
+                        if (currentEtag != null && currentEtag.Count() > 0)
+                        {
+                            // set initial etag state
+                            if (string.IsNullOrWhiteSpace(previousETag))
+                            {
+                                previousETag = currentEtag[0];
+                            }
+
+                            if (!string.Equals(previousETag, currentEtag[0], StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                previousETag = currentEtag[0];
+                                
+                                // run program
+                                runTarget = true;
+                            }
+                        }
+                        
+                        // check last modified
+                        var currentLastModifiedStr = response.Headers.GetValues("Last-Modified");
+                        if (currentLastModifiedStr != null && currentLastModifiedStr.Count() > 0 )
+                        {
+                            DateTime currentLastModified = DateTime.Parse(currentLastModifiedStr[0]);
+
+                            // set initial modified state
+                            if (previouslastModified == defaultDateTime)
+                            {
+                                previouslastModified = currentLastModified;
+                            }
+
+                            // check modified data is newer
+                            if (previouslastModified < currentLastModified)
+                            {
+                                previouslastModified = currentLastModified;
+
+                                // run program
+                                runTarget = true;
+                            }
+                        }
+                        
+                        // no etag or last modified so compare contents
+                        if (string.IsNullOrWhiteSpace(previousETag) && previouslastModified == defaultDateTime)
+                        {
+                            using (Stream s = response.GetResponseStream())
+                            {
+                                var currentHash = sha1.ComputeHash(s);
+
+                                // set initial hash
+                                if(previousHash == null)
+                                {
+                                    previousHash = currentHash;
+                                }
+
+                                // check hashes are not equal
+                                if(!Equals(previousHash, currentHash))
+                                {
+                                    previousHash = currentHash;
+
+                                    // run program
+                                    runTarget = true;
+                                }
+                            }
+                        }
+
+                        // run program
+                        if (runTarget)
+                        {
+                            Run(args.TargetProgram, args.Arguments);
+                        }
+                    }
+
+                    Thread.Sleep(args.Interval);
+                }
+            }));
+
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+
+            Console.WriteLine("Press Key to End");
+            Console.ReadKey();
+            stopThread = true;
+            t.Abort();
+        }
+
+        private bool Equals(byte[] h1, byte[] h2)
+        {
+            if (h1.Length != h2.Length)
+            {
+                return false;
+            }
+
+            for(int i = h1.Length; i < h1.Length; i++)
+            {
+                 if (h1[i] != h2[i])
+                {
+                    return false; 
+                }
+            }
+
+            return true;
         }
 
         [ArgActionMethod, ArgDescription("Watch for changes in Ftp response")]
@@ -92,7 +210,7 @@ namespace Watch
             bool stopThread = false;
             var t = new Thread(new ThreadStart(() =>
             {
-                DateTime defaultDateTime = DateTime.Now.AddYears(-10000);
+                DateTime defaultDateTime = new DateTime(100, 1, 1);
                 DateTime previouslastModified = defaultDateTime; 
                 while (!stopThread)
                 {
