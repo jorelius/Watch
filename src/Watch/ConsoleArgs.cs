@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,7 +36,7 @@ namespace Watch
                         previousClipText = currentText;
 
                         // run program
-                        Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", currentText));
+                        Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", "\"" + EncodeArgument(currentText) + "\""));
                     }
 
                     Thread.Sleep(args.Interval);
@@ -49,8 +50,24 @@ namespace Watch
             Console.ReadKey();
             stopThread = true;
             t.Abort();
-        }        
-        
+        }
+
+        /// <summary>
+        /// Token replacement text must be escaped properly 
+        /// to avoid injecting unintended arguments into the 
+        /// Target Program.
+        /// </summary>
+        /// <param name="original"></param>
+        /// <returns></returns>
+        private string EncodeArgument(string original)
+        {
+            if (string.IsNullOrEmpty(original))
+                return original;
+            string value = Regex.Replace(original, @"(\\*)" + "\"", @"$1\$0");
+            value = Regex.Replace(value, @"^(.*\s.*?)(\\*)$", "\"$1$2$2\"");
+            return value;
+        }
+
         [ArgActionMethod, ArgDescription("Watch file or directory for changes"), ArgShortcut("fs")]
         public void Filesystem(FileSystemArgs args)
         {
@@ -276,10 +293,10 @@ namespace Watch
 
     public class DefaultTriggerArgs
     {
-        [ArgRequired, ArgDescription("The target program that is triggered"), ArgShortcut("t"), ArgPosition(1), ArgExistingFile]
+        [ArgRequired, ArgDescription("The target program that is triggered"), ArgShortcut("t"), ArgPosition(1)]
         public string TargetProgram { get; set; }
 
-        [ArgDescription("Arguments passed to program when Clipboard is updated. A {CLIPTEXT} token can be include in program arguments that will be replaced with clipboard text results upon trigger."), ArgShortcut("a"), ArgPosition(2)]
+        [ArgDescription("Arguments passed to program when Clipboard is updated."), ArgShortcut("a"), ArgPosition(2)]
         public string Arguments { get; set; }
     }
 
