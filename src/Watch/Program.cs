@@ -1,15 +1,10 @@
-﻿using PowerArgs;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using PowerArgs;
 
 namespace Watch
 {
     class Program
     {
-        [STAThread]
         static void Main(string[] args)
         {
             ConsoleArgs parsed = null;

@@ -1,4 +1,4 @@
-﻿using PowerArgs;
+using PowerArgs;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,19 +24,18 @@ namespace Watch
             bool stopThread = false;
             var t = new Thread(new ThreadStart(() =>
             {
-                string previousClipText = System.Windows.Clipboard.GetText();
+                string previousClipText = TextCopy.Clipboard.GetText();
                 while (!stopThread)
                 {
                     string currentText = String.Empty;
-                    if (System.Windows.Clipboard.ContainsText() &&
-                        !String.Equals((currentText = System.Windows.Clipboard.GetText()), previousClipText))
+                    if (!String.Equals((currentText = TextCopy.Clipboard.GetText()), previousClipText))
                     {
                         // save the text so we can compare it
                         // later
                         previousClipText = currentText;
 
                         // run program
-                        Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", "\"" + EncodeArgument(currentText) + "\""));
+                        Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", EncodeClipboardTextArgument(currentText)));
                     }
 
                     Thread.Sleep(args.Interval);
@@ -59,12 +58,12 @@ namespace Watch
         /// </summary>
         /// <param name="original"></param>
         /// <returns></returns>
-        private string EncodeArgument(string original)
+        private string EncodeClipboardTextArgument(string original)
         {
             if (string.IsNullOrEmpty(original))
                 return original;
             string value = Regex.Replace(original, @"(\\*)" + "\"", @"$1\$0");
-            value = Regex.Replace(value, @"^(.*\s.*?)(\\*)$", "\"$1$2$2\"");
+            value = Regex.Replace(value, @"^(.*\s.*?)(\\*)$", "\"$1$2$2\"").Replace(System.Environment.NewLine, "");
             return value;
         }
 
@@ -277,6 +276,8 @@ namespace Watch
 
             try
             {
+                Console.WriteLine("{0} {1}", TargetProgram, Arguments);
+
                 // Start the process with the info we specified.
                 // Call WaitForExit and then the using statement will close.
                 using (Process exeProcess = Process.Start(startInfo))
@@ -287,6 +288,7 @@ namespace Watch
             catch
             {
                 // Log error.
+                Console.WriteLine("{0} {1}", TargetProgram, Arguments);
             }
         }
     }
