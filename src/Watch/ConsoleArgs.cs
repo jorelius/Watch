@@ -28,14 +28,14 @@ namespace Watch
                 while (!stopThread)
                 {
                     string currentText = String.Empty;
-                    if (!String.Equals((currentText = TextCopy.Clipboard.GetText()), previousClipText))
+                    if (!String.Equals((currentText = TextCopy.Clipboard.GetText()), previousClipText) && currentText != null)
                     {
                         // save the text so we can compare it
                         // later
                         previousClipText = currentText;
 
                         // run program
-                        Run(args.TargetProgram, args.Arguments.Replace("{CLIPTEXT}", EncodeClipboardTextArgument(currentText)));
+                        Run(args.TargetProgram, args?.Arguments?.Replace("{CLIPTEXT}", EncodeClipboardTextArgument(currentText)));
                     }
 
                     Thread.Sleep(args.Interval);

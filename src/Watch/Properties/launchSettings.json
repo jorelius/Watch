@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Watch": {
+      "commandName": "Project",
+      "commandLineArgs": "clipboard \"echo\""
+    }
+  }
+}
