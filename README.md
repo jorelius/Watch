@@ -1,10 +1,24 @@
 # Watch
 
 [![Build status](https://ci.appveyor.com/api/projects/status/2178awlmn3471tkc?svg=true)](https://ci.appveyor.com/project/jorelius/watch)
+[![NuGet](https://img.shields.io/nuget/v/watch.svg?style=flat-square&label=nuget)](https://www.nuget.org/packages/watch/)
 
 Trigger command when a watched resource (e.g. Clipboard, Filesystem, Http, Ftp, etc) changes.  
 
-## Usage
+## Console
+
+Watch is packaged as a dotnet console tool. It exposes many of the features the core framework provides.
+
+Prerequisites
+dotnet core sdk
+
+### Install
+
+```console
+$ dotnet tool install watch -g
+```
+
+### Usage
 
     Usage - Watch <action> -options
 
