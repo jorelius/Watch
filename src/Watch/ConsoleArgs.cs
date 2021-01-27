@@ -47,8 +47,14 @@ namespace Watch
 
             Console.WriteLine("Press Key to End");
             Console.ReadKey();
-            stopThread = true;
-            t.Abort();
+            
+            try
+            {
+                stopThread = true;
+                t.Abort();
+            }
+            catch (Exception e)
+            {}
         }
 
         /// <summary>
@@ -70,30 +76,43 @@ namespace Watch
         [ArgActionMethod, ArgDescription("Watch file or directory for changes"), ArgShortcut("fs")]
         public void Filesystem(FileSystemArgs args)
         {
-            bool stopThread = false;
-            var t = new Thread(new ThreadStart(() =>
+            using (var watcher = new FileSystemWatcher())
             {
-                var isFile = File.Exists(args.Path);
-                var watcher = new FileSystemWatcher(Path.GetDirectoryName(args.Path), 
-                    isFile ? Path.GetFileName(args.Path) : "");
+                if (File.Exists(args.Path))
+                {
+                    watcher.Path = Path.GetDirectoryName(args.Path);
+                    watcher.Filter = Path.GetFileName(args.Path);
+                }
+                else if (Directory.Exists(args.Path))
+                {
+                    watcher.Path = args.Path;
+                }
+                else
+                {
+                    Console.WriteLine("Path must be a file or directory");
+                    return;
+                }
+
+                watcher.NotifyFilter = 
+                    NotifyFilters.LastAccess
+                    | NotifyFilters.LastWrite
+                    | NotifyFilters.Attributes
+                    | NotifyFilters.Security
+                    | NotifyFilters.FileName
+                    | NotifyFilters.DirectoryName;
+
+                // Add event handlers.
+                watcher.Changed += (sender, e) => Run(args.TargetProgram, args.Arguments);
+                watcher.Created += (sender, e) => Run(args.TargetProgram, args.Arguments);
+                watcher.Deleted += (sender, e) => Run(args.TargetProgram, args.Arguments);
+                watcher.Renamed += (sender, e) => Run(args.TargetProgram, args.Arguments);
+
+                // Begin watching.
                 watcher.EnableRaisingEvents = true;
 
-                while (!stopThread)
-                {
-                    watcher.WaitForChanged(WatcherChangeTypes.All);
-
-                    // run program
-                    Run(args.TargetProgram, args.Arguments);
-                }
-            }));
-
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
-
-            Console.WriteLine("Press Key to End");
-            Console.ReadKey();
-            stopThread = true;
-            t.Abort();
+                Console.WriteLine("Press Key to End");
+                Console.ReadKey();
+            }
         }
 
         [ArgActionMethod, ArgDescription("Watch for changes in http response")]
@@ -198,8 +217,14 @@ namespace Watch
 
             Console.WriteLine("Press Key to End");
             Console.ReadKey();
-            stopThread = true;
-            t.Abort();
+
+            try
+            {
+                stopThread = true;
+                t.Abort();
+            }
+            catch (Exception e)
+            {}
         }
 
         private bool Equals(byte[] h1, byte[] h2)
@@ -261,8 +286,14 @@ namespace Watch
 
             Console.WriteLine("Press Key to End");
             Console.ReadKey();
-            stopThread = true;
-            t.Abort();
+            
+            try
+            {
+                stopThread = true;
+                t.Abort();
+            }
+            catch (Exception e)
+            {}
         }
         
         private void Run(string TargetProgram, string Arguments)
