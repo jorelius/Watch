@@ -1,6 +1,6 @@
 # Watch
 
-[![Build status](https://ci.appveyor.com/api/projects/status/2178awlmn3471tkc?svg=true)](https://ci.appveyor.com/project/jorelius/watch)
+[![Build status](https://github.com/jorelius/Watch/workflows/.NET/badge.svg)](https://github.com/jorelius/Watch)
 [![NuGet](https://img.shields.io/nuget/v/watch.svg?style=flat-square&label=nuget)](https://www.nuget.org/packages/watch/)
 
 Trigger command when a watched resource (e.g. Clipboard, Filesystem, Http, Ftp, etc) changes.  

@@ -23,3 +23,17 @@ jobs:
       run: dotnet build ./src --no-restore
     - name: Test
       run: dotnet test ./src --no-build --verbosity normal
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Pack Nuget Package
+        run: dotnet pack ./src/Watch.sln --configuration Release
+      - name: Push package to Nuget
+        run: |
+          dotnet nuget push ./src/Watch/**/*.nupkg --api-key ${{ secrets.NUGET_DEPLOY_KEY }} --source https://api.nuget.org/v3/index.json --no-symbols true --skip-duplicate
