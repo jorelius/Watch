@@ -35,7 +35,7 @@ namespace Watch
                         previousClipText = currentText;
 
                         // run program
-                        Run(args.TargetProgram, args?.Arguments?.Replace("{CLIPTEXT}", EncodeClipboardTextArgument(currentText)));
+                        Run(args.TargetProgram, args?.Arguments?.Replace("{CLIPTEXT}", EncodeClipboardTextArgument(currentText)), args.Repeat);
                     }
 
                     Thread.Sleep(args.Interval);
@@ -90,7 +90,8 @@ namespace Watch
                 else
                 {
                     Console.WriteLine("Path must be a file or directory");
-                    return;
+                    
+                    Environment.Exit(-1);
                 }
 
                 watcher.NotifyFilter = 
@@ -102,10 +103,10 @@ namespace Watch
                     | NotifyFilters.DirectoryName;
 
                 // Add event handlers.
-                watcher.Changed += (sender, e) => Run(args.TargetProgram, args.Arguments);
-                watcher.Created += (sender, e) => Run(args.TargetProgram, args.Arguments);
-                watcher.Deleted += (sender, e) => Run(args.TargetProgram, args.Arguments);
-                watcher.Renamed += (sender, e) => Run(args.TargetProgram, args.Arguments);
+                watcher.Changed += (sender, e) => Run(args.TargetProgram, args.Arguments, args.Repeat);
+                watcher.Created += (sender, e) => Run(args.TargetProgram, args.Arguments, args.Repeat);
+                watcher.Deleted += (sender, e) => Run(args.TargetProgram, args.Arguments, args.Repeat);
+                watcher.Renamed += (sender, e) => Run(args.TargetProgram, args.Arguments, args.Repeat);
 
                 // Begin watching.
                 watcher.EnableRaisingEvents = true;
@@ -204,7 +205,7 @@ namespace Watch
                         // run program
                         if (runTarget)
                         {
-                            Run(args.TargetProgram, args.Arguments);
+                            Run(args.TargetProgram, args.Arguments, args.Repeat);
                         }
                     }
 
@@ -273,7 +274,7 @@ namespace Watch
                             previouslastModified = response.LastModified;
 
                             // run program
-                            Run(args.TargetProgram, args.Arguments);
+                            Run(args.TargetProgram, args.Arguments, args.Repeat);
                         }
                     }
                     
@@ -296,7 +297,9 @@ namespace Watch
             {}
         }
         
-        private void Run(string TargetProgram, string Arguments)
+        private int CurrentRepetitions = 0;
+
+        private void Run(string TargetProgram, string Arguments, int Repetitions)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.CreateNoWindow = false;
@@ -315,11 +318,17 @@ namespace Watch
                 {
                     exeProcess.WaitForExit();
                 }
+
+                CurrentRepetitions++;
+                if (Repetitions != 0 && CurrentRepetitions >= Repetitions)
+                {
+                    Environment.Exit(0);
+                }
             }
             catch
             {
                 // Log error.
-                Console.WriteLine("{0} {1}", TargetProgram, Arguments);
+                //Console.WriteLine("{0} {1}", TargetProgram, Arguments);
             }
         }
     }
@@ -331,6 +340,9 @@ namespace Watch
 
         [ArgDescription("Arguments passed to program when Clipboard is updated."), ArgShortcut("a"), ArgPosition(2)]
         public string Arguments { get; set; }
+
+        [ArgDescription("Number of times to repeat watch and trigger. 0 is indefinitely"), ArgShortcut("r"), DefaultValue(0), ArgRange(0, int.MaxValue)]
+        public int Repeat { get; set; }
     }
 
     public class ClipboardArgs : DefaultTriggerArgs
